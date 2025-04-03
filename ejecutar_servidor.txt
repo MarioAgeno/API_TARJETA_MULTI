@@ -1,0 +1,5 @@
+venv\scripts\activate
+uvicorn main:app --reload --port 5005
+
+
+para acceder se debe autorizar con el token guardado en el archivos .env 

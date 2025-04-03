@@ -1,0 +1,5 @@
+.venv
+venv/
+__pycache__
+nssm.txt
+.env
