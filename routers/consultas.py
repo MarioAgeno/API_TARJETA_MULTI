@@ -306,6 +306,52 @@ def cajas_comercios(id_comercio: int, conn: pyodbc.Connection = Depends(get_clie
 	return caja_db
 
 
+# Buscar las Ventas de un Comercio segun su ID y fecha
+@router.get('/operacionesComercio/', response_model=List[Operaciones_Comercio], tags=['Registros de Compras'])
+def operaciones_comercio(
+	id_comercio: int,
+	fecha: str,  # formato 'YYYY-MM-DD'
+	conn: pyodbc.Connection = Depends(get_client_connection)
+):
+	operaciones_db = []
+	try:
+		with conn.cursor() as cursor:
+			sentenciaSQL = '''
+				SELECT IdOperacion, idtarjeta, TitularTarjeta, fecha, cupon, idcomercio, NombreComercio, 
+					   ImporteCompra, idplan, idCajaLotes, nombre_caja
+				FROM vwComprasAComercios
+				WHERE idcomercio = ? AND CAST(fecha AS DATE) = ?
+				ORDER BY NombreComercio DESC, idCajaLotes DESC
+			'''
+			cursor.execute(sentenciaSQL, id_comercio, fecha)
+			registros = cursor.fetchall()
+			if registros:
+				for row in registros:
+					operacion = Operaciones_Comercio(
+						IdOperacion = row[0],
+						idtarjeta = row[1],
+						TitularTarjeta = row[2],
+						fecha = row[3],
+						cupon = row[4],
+						idcomercio = row[5],
+						NombreComercio = row[6],
+						ImporteCompra = row[7],
+						idplan = row[8],
+						idCajaLotes = row[9],
+						nombre_caja = row[10]
+					)
+					operaciones_db.append(operacion)
+	except Exception as e:
+		raise HTTPException(
+			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+			detail=f"Error al consultar operaciones: {str(e)}"
+		)
+	finally:
+		conn.close()
+	return operaciones_db
+
+
+
 # Buscar una Tarjeta segun su ID
 @router.get('/tarjetas/', tags=['Tarjetas Asociados'])
 def buscar_tarjeta(id_tarjeta: int = 'ID Tarjeta', conn: pyodbc.Connection = Depends(get_client_connection)):

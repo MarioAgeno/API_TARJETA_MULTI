@@ -135,3 +135,16 @@ class ClienteConfig(BaseModel):
     token_acceso: str
     activo: bool
 
+# -- Vista Operaciones por Comercio
+class Operaciones_Comercio(BaseModel):
+	IdOperacion: int
+	idtarjeta: int
+	TitularTarjeta: str
+	fecha: datetime
+	cupon: int
+	idcomercio: int
+	NombreComercio: str
+	ImporteCompra: float
+	idplan: int
+	idCajaLotes: int
+	nombre_caja: str
