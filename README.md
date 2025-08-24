@@ -1,4 +1,4 @@
-API Tarjeta (Multi-tenant + JWT) — README
+# API Tarjeta (Multi-tenant + JWT) — README
 🧭 Resumen
 
 API unificada que expone:
