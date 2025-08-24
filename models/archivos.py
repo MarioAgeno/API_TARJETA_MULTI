@@ -1,3 +1,4 @@
+# API_TARJETA_MULTI\models\archivos.py
 from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional

@@ -1,4 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends, Request
+from tenants import require_tenant, resolve_tenant
+from auth import require_user
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
@@ -8,8 +10,13 @@ from routers.consultas import router as consultas_router
 from routers.calculos import router as calcular_cuotas
 from routers.grabaciones import router as grabaciones
 from routers.usuario import router as usuario_router
+from routers.auth_login import router as auth_login_router
 from core.database import get_cliente_config
 import os
+import time
+
+from typing import Annotated
+
 
 #-- Cargar las variables de entorno (ya no se usa TOKEN_ACESO global)
 load_dotenv()
@@ -17,6 +24,19 @@ load_dotenv()
 app = FastAPI()
 security = HTTPBearer()
 app.title = "MAASoft - API Tarjetas de Compras"
+
+@app.get("/_debug/tenant", dependencies=[Depends(require_tenant), Depends(require_user)])
+def debug_tenant(tenant: dict = Depends(resolve_tenant)):
+    return {"cuit": tenant["cuit"], "db_name": tenant["db_name"]}
+
+@app.get("/_debug/token")
+def debug_token(user: dict = Depends(require_user)):
+    return {
+        "now": int(time.time()),
+        "iat": user.get("iat"),
+        "exp": user.get("exp"),
+        "sub": user.get("sub"),
+    }
 
 # -- Validar acceso solo si el token + CUIT coinciden
 async def validar_acceso_docs(
@@ -58,11 +78,37 @@ async def mensaje():
         <a href='/docs'>Documentación protegida</a>
     '''
 
+# Alias útil para inyectar el usuario autenticado (claims del JWT)
+User = Annotated[dict, Depends(require_user)]
+
+# Helper de chequeo de rol (igual que en tu API Login)
+def require_role(role: str):
+    def _check(user: dict = Depends(require_user)):
+        roles = user.get("roles", [])
+        if role not in roles:
+            raise HTTPException(status_code=403, detail="No autorizado")
+        return user
+    return _check
+
+# /me -> quién soy (JWT)
+@app.get("/me", tags=["auth"], dependencies=[Depends(require_tenant)])
+def me(user: User):
+    return {"sub": user["sub"], "name": user.get("name"), "roles": user.get("roles", [])}
+
+# /comercios/secret -> requiere rol "Comercio"
+@app.get("/comercios/secret", tags=["auth"], dependencies=[Depends(require_tenant)])
+def solo_comercios(user: dict = Depends(require_role("Comercio"))):
+    return {"ok": True, "msg": "Acceso autorizado para rol Comercio"}
+
+# Login multi-tenant
+app.include_router(auth_login_router, dependencies=[Depends(require_tenant)])
+
 # -- Registrar routers (ya tienen validación por token + CUIT en cada uno)
-app.include_router(consultas_router)
-app.include_router(calcular_cuotas)
-app.include_router(grabaciones)
-app.include_router(usuario_router)
+app.include_router(consultas_router,  dependencies=[Depends(require_tenant), Depends(require_user)])
+app.include_router(calcular_cuotas,   dependencies=[Depends(require_tenant), Depends(require_user)])
+app.include_router(grabaciones,       dependencies=[Depends(require_tenant), Depends(require_user)])
+app.include_router(usuario_router,    dependencies=[Depends(require_tenant), Depends(require_user)])
+
 
 # -- Ejecución local (opcional)
 '''

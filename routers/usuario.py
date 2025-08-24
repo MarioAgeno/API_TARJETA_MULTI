@@ -1,39 +1,15 @@
-from fastapi import APIRouter, HTTPException, status, Depends, Header
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials  
+# API_TARJETA_MULTI\routers\usuarios.py
+from fastapi import APIRouter, HTTPException, status, Depends
 from typing import List
 from models.archivos import *
-from core.database import get_cliente_config
 import pyodbc
+from tenants import get_conn
+
 
 router = APIRouter()
-security = HTTPBearer()
 
-# Dependencia para obtener la conexión del cliente
-async def get_client_connection(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    x_cliente_cuit: str = Header(..., alias="CUIT-CLIENTE")
-):
-    try:
-        # 1. Obtener token del header
-        token = credentials.credentials
-        
-        # 2. Obtener configuración del cliente (implementa esta función)
-        cliente = get_cliente_config(x_cliente_cuit)
-        
-        # 3. Validar token
-        if token != cliente.token_acceso:
-            raise HTTPException(status_code=403, detail="Token inválido")
-        
-        # 4. Crear conexión
-        conn_str = f"Driver={cliente.driver_odbc};Server={cliente.server};Database={cliente.data_base};UID={cliente.user_db};PWD={cliente.pass_udb};"
-        conn = pyodbc.connect(conn_str)
-        return conn
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Error de autenticación: {str(e)}"
-        )
+def get_client_connection(conn: pyodbc.Connection = Depends(get_conn)):
+    return conn
 
 
 # buscar un usuario por su login

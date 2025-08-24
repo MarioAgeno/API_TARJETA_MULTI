@@ -1,37 +1,18 @@
-from fastapi import APIRouter, HTTPException, status, Depends, Header
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+# API_TARJETA_MULTI\routers\grabaciones.py
+from fastapi import APIRouter, HTTPException, status, Depends
 from models.archivos import *
 from datetime import datetime
 import pyodbc
 from typing import Optional
-from core.database import get_cliente_config
+from tenants import get_conn 
 
 router = APIRouter()
-security = HTTPBearer()
 
-# --- Copiamos LA MISMA función de conexión que en consultas.py ---
-async def get_client_connection(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    x_cliente_cuit: str = Header(..., alias="CUIT-CLIENTE")  # Mismo nombre de header
-):
-    try:
-        # 1. Validar token
-        token = credentials.credentials
-        cliente = get_cliente_config(x_cliente_cuit)
-        if token != cliente.token_acceso:
-            raise HTTPException(status_code=403, detail="Token inválido")
-        
-        # 2. Crear conexión (igual que en consultas.py)
-        conn_str = f"Driver={cliente.driver_odbc};Server={cliente.server};Database={cliente.data_base};UID={cliente.user_db};PWD={cliente.pass_udb};"
-        conn = pyodbc.connect(conn_str)
-        conn.autocommit = False  # Mantenemos control transaccional
-        return conn
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Error de conexión: {str(e)}"
-        )
+
+def get_client_connection(conn: pyodbc.Connection = Depends(get_conn)):
+    conn.autocommit = False
+    return conn
+
 
 # --- Funciones originales (iguales) ---
 def generar_codigo_autorizacion():
@@ -134,25 +115,11 @@ async def actualizar_saldo(
 @router.post("/grabar_compra_y_actualizar_saldo/", tags=['Registros de Compras'])
 async def grabar_compra_y_actualizar_saldo_endpoint(
     compra: Compras,
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    x_cliente_cuit: str = Header(..., alias="CUIT-CLIENTE")
+    conn: pyodbc.Connection = Depends(get_client_connection)    
 ):
-    conn = None
     cursor = None
     try:
-        # 1. Validar y conectar
-        cliente = get_cliente_config(x_cliente_cuit)
-        if credentials.credentials != cliente.token_acceso:
-            raise HTTPException(status_code=403, detail="Token inválido")
-        
-        conn = pyodbc.connect(
-            f"Driver={cliente.driver_odbc};"
-            f"Server={cliente.server};"
-            f"Database={cliente.data_base};"
-            f"UID={cliente.user_db};"
-            f"PWD={cliente.pass_udb};"
-        )
-        conn.autocommit = False
+        # Conexión y transacción ya gestionadas por get_client_connection
 
         # 2. Generar valores
         codigo_autorizacion = generar_codigo_autorizacion()
@@ -191,5 +158,3 @@ async def grabar_compra_y_actualizar_saldo_endpoint(
     finally:
         if cursor:
             cursor.close()
-        if conn:
-            conn.close()

@@ -1,3 +1,4 @@
+# API_TARJETA_MULTI\core\database.py
 import pyodbc
 from fastapi import HTTPException, status
 from models.archivos import ClienteConfig  # Importas el modelo existente
