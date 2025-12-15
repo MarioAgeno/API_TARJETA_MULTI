@@ -328,7 +328,6 @@ def operaciones_comercio(
 	return operaciones_db
 
 
-
 # Buscar una Tarjeta segun su ID
 @router.get('/tarjetas/', tags=['Tarjetas Asociados'])
 def buscar_tarjeta(id_tarjeta: int = 'ID Tarjeta', conn: pyodbc.Connection = Depends(get_client_connection)):
@@ -336,8 +335,8 @@ def buscar_tarjeta(id_tarjeta: int = 'ID Tarjeta', conn: pyodbc.Connection = Dep
 	try:
 		with conn.cursor() as cursor:
 			sentenciaSQL = '''
-			SELECT id, sucursal, socio, adicional, verificador, nombre, domicilio, localidad, provincia, mail, tope, saldo, estado, baja, vencimiento 
-				from tjTarjetas WHERE id = ?
+			SELECT id, sucursal, socio, adicional, verificador, nombre, domicilio, localidad, provincia, mail, tjLimites.tope, tjLimites.saldo, tjLimites.topemes, tjLimites.saldomes, estado, baja, vencimiento 
+				FROM tjTarjetas INNER JOIN tjLimites on tjTarjetas.idtitular = tjLimites.idTarjeta WHERE id = ?
 			'''
 			cursor.execute(sentenciaSQL, id_tarjeta)
 			registro = cursor.fetchone()
@@ -355,9 +354,11 @@ def buscar_tarjeta(id_tarjeta: int = 'ID Tarjeta', conn: pyodbc.Connection = Dep
 					mail = registro[9],
 					tope = registro[10],
 					saldo = registro[11],
-					estado = registro[12],
-					baja = registro[13],
-					vencimento = registro[14]
+					topemes = registro[12],
+					saldomes = registro[13],
+					estado = registro[14],
+					baja = registro[15],
+					vencimento = registro[16]
 				)
 	except Exception as e:
 		raise HTTPException(

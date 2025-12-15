@@ -95,6 +95,8 @@ class Tarjetas(BaseModel):
 	mail: str
 	tope: float
 	saldo: float
+	topemes: float
+	saldomes: float
 	estado: int
 	baja: Optional[datetime]
 	vencimento: datetime
@@ -103,6 +105,7 @@ class Tarjetas(BaseModel):
 class Saldo_Tarjeta(BaseModel):
 	id: int
 	importe: float
+	importe_cuota: float
 
 # -- Compras
 class Compras(BaseModel):
