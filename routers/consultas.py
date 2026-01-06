@@ -40,7 +40,7 @@ def leer_estados(conn: pyodbc.Connection = Depends(get_client_connection)):
 
 
 # Buscar un Estados de Tarjeta segun su ID
-@router.get('/estados/', tags=['Estado de Tarjetas'])
+@router.get('/estados/', tags=['Estado de la Tarjeta'])
 def buscar_estado(id_estado: int, conn: pyodbc.Connection = Depends(get_client_connection)):
 	estado_db = None
 	try:
@@ -97,7 +97,7 @@ def leer_planes(conn: pyodbc.Connection = Depends(get_client_connection)):
 
 
 # Buscar un plan de pagos segun su ID
-@router.get('/planes/', tags=['Planes de pagos'])
+@router.get('/planes/', tags=['Plane de pago'])
 def buscar_plan(id_plan: int, conn: pyodbc.Connection = Depends(get_client_connection)):
 	planes_db = None
 	try:
@@ -128,7 +128,7 @@ def buscar_plan(id_plan: int, conn: pyodbc.Connection = Depends(get_client_conne
 
 
 # Buscar los planes habilitados de un Comercio
-@router.get('/planesComercios/', response_model=List[Planes_Comercios], tags=['Planes de pagos'])
+@router.get('/planesComercios/', response_model=List[Planes_Comercios], tags=['Planes de pagos de Comercios'])
 def planes_comercios(id_comercio: int, conn: pyodbc.Connection = Depends(get_client_connection)):
 	planes_db	= []
 	try:
@@ -192,7 +192,7 @@ def ultimas_compras(id_tarjeta: int = 'ID Tarjeta', conn: pyodbc.Connection = De
 
 
 # Obtener las cuotas de una compra segun ID de Compras
-@router.get('/cuotas/', response_model=List[Detalle_Cuotas], tags=['Registros de Compras'])
+@router.get('/cuotas/', response_model=List[Detalle_Cuotas], tags=['Detalle de Cuotas'])
 def detalle_cuotas(id_compra: int, conn: pyodbc.Connection = Depends(get_client_connection)):
 	detalle_cuotas_db = []
 	try:
@@ -220,7 +220,7 @@ def detalle_cuotas(id_compra: int, conn: pyodbc.Connection = Depends(get_client_
 
 
 # Buscar un Comercio segun su ID
-@router.get('/comercios/', tags=['Registros de Compras'])
+@router.get('/comercios/', tags=['Informacion del Comercio'])
 def buscar_comercio(id_comercio: int, conn: pyodbc.Connection = Depends(get_client_connection)):
 	comercio_db = None
 	try:
@@ -256,7 +256,7 @@ def buscar_comercio(id_comercio: int, conn: pyodbc.Connection = Depends(get_clie
 
 
 # Buscar los cajas habilitados de un Comercio
-@router.get('/cajasComercios/', response_model=List[Cajas_Comercio], tags=['Registros de Compras'])
+@router.get('/cajasComercios/', response_model=List[Cajas_Comercio], tags=['Cajas del Comercio'])
 def cajas_comercios(id_comercio: int, conn: pyodbc.Connection = Depends(get_client_connection)):
 	caja_db = []
 	try:
