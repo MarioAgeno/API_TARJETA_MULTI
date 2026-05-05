@@ -335,12 +335,15 @@ def buscar_tarjeta(id_tarjeta: int = 'ID Tarjeta', conn: pyodbc.Connection = Dep
 	try:
 		with conn.cursor() as cursor:
 			sentenciaSQL = '''
-			SELECT id, sucursal, socio, adicional, verificador, nombre, domicilio, localidad, provincia, mail, tjLimites.tope, tjLimites.saldo, tjLimites.topemes, tjLimites.saldomes, estado, baja, vencimiento 
-				FROM tjTarjetas INNER JOIN tjLimites on tjTarjetas.idtitular = tjLimites.idTarjeta WHERE id = ?
+			SELECT id, sucursal, socio, adicional, verificador, nombre, domicilio, localidad, provincia, mail,
+				estado, baja, vencimiento 
+			FROM tjTarjetas WHERE id = ?
 			'''
 			cursor.execute(sentenciaSQL, id_tarjeta)
 			registro = cursor.fetchone()
 			if registro:
+				cursor.execute('EXEC verLimites ?', id_tarjeta)
+				limites = cursor.fetchone()
 				tarjeta_db = Tarjetas(
 					id = registro[0],
 					sucursal = registro[1],
@@ -352,13 +355,13 @@ def buscar_tarjeta(id_tarjeta: int = 'ID Tarjeta', conn: pyodbc.Connection = Dep
 					localidad = registro[7],
 					provincia = registro[8],
 					mail = registro[9],
-					tope = registro[10],
-					saldo = registro[11],
-					topemes = registro[12],
-					saldomes = registro[13],
-					estado = registro[14],
-					baja = registro[15],
-					vencimento = registro[16]
+					tope = limites[1] if limites else 0,
+					topemes = limites[2] if limites else 0,
+					saldo = limites[3] if limites else 0,
+					saldomes = limites[4] if limites else 0,
+					estado = registro[10],
+					baja = registro[11],
+					vencimento = registro[12]
 				)
 	except Exception as e:
 		raise HTTPException(

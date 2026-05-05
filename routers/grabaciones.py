@@ -93,19 +93,26 @@ def obtener_limites_tarjeta(conn: pyodbc.Connection, numero_tarjeta: str):
             cursor.close()
 
 
-def obtener_consumido_tarjeta(conn: pyodbc.Connection, numero_tarjeta: str):
+def obtener_consumido_tarjeta(conn: pyodbc.Connection, numero_tarjeta: int):
     """Llama al SP verConsumido pasando el número de tarjeta y devuelve
     las compras realizadas en el periodo actual como lista de dicts.
     """
     cursor = None
     try:
         cursor = conn.cursor()
-        cursor.execute("exec verConsumido ?", [numero_tarjeta])
-        rows = cursor.fetchall()
-        cols = [c[0] for c in cursor.description] if cursor.description else []
-        if cols:
-            return [dict(zip(cols, r)) for r in rows]
-        return [tuple(r) for r in rows]
+        cursor.execute("exec verConsumido ?", [int(numero_tarjeta)])
+        # Iterar result sets: el SP puede emitir sets vacíos antes del SELECT real
+        result = []
+        while True:
+            if cursor.description:
+                rows = cursor.fetchall()
+                if rows:
+                    cols = [c[0] for c in cursor.description]
+                    result = [dict(zip(cols, r)) for r in rows]
+                    break
+            if not cursor.nextset():
+                break
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener consumido: {str(e)}")
     finally:
@@ -119,7 +126,7 @@ async def ver_limites_endpoint(numero_tarjeta: str, conn: pyodbc.Connection = De
 
 
 @router.get("/ver_consumido/{numero_tarjeta}", tags=["Tarjetas"])
-async def ver_consumido_endpoint(numero_tarjeta: str, conn: pyodbc.Connection = Depends(get_client_connection)):
+async def ver_consumido_endpoint(numero_tarjeta: int, conn: pyodbc.Connection = Depends(get_client_connection)):
     return obtener_consumido_tarjeta(conn, numero_tarjeta)
 
 
@@ -285,7 +292,16 @@ async def grabar_compra_y_actualizar_saldo_endpoint(
         try:
             # Ejecutar SP verConsumido y sumar importe
             cursor.execute('exec verConsumido ?', [compra.idtarjeta])
-            consumos = cursor.fetchall()
+            # Iterar result sets hasta encontrar el que contiene datos
+            consumos = []
+            while True:
+                if cursor.description:
+                    rows = cursor.fetchall()
+                    if rows:
+                        consumos = rows
+                        break
+                if not cursor.nextset():
+                    break
             consumido_total = 0.0
             cols = [c[0].lower() for c in cursor.description] if cursor.description else []
             # Detectar columna de importe
