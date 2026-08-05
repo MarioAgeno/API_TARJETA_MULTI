@@ -281,51 +281,21 @@ async def grabar_compra_y_actualizar_saldo_endpoint(
                 raise HTTPException(status_code=400, detail=f"Tarjeta id={compra.idtarjeta} no está activa")
             if saldo_total < compra.importe:
                 raise HTTPException(status_code=400, detail=f"Saldo insuficiente en tarjeta: saldo={saldo_total}, importe={compra.importe}")
-            if saldomes < importe_cuota:
-                raise HTTPException(status_code=400, detail=f"Saldo mensual insuficiente: saldomes={saldomes}, cuota={importe_cuota}")
         except HTTPException:
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error al validar tarjeta: {str(e)}")
 
-        # Validar que el consumido del periodo + compra no supere topemes
-        try:
-            # Ejecutar SP verConsumido y sumar importe
-            cursor.execute('exec verConsumido ?', [compra.idtarjeta])
-            # Iterar result sets hasta encontrar el que contiene datos
-            consumos = []
-            while True:
-                if cursor.description:
-                    rows = cursor.fetchall()
-                    if rows:
-                        consumos = rows
-                        break
-                if not cursor.nextset():
-                    break
-            consumido_total = 0.0
-            cols = [c[0].lower() for c in cursor.description] if cursor.description else []
-            # Detectar columna de importe
-            idx_importe = None
-            for i, col in enumerate(cols):
-                if 'importe' in col or 'monto' in col:
-                    idx_importe = i
-                    break
-            for row in consumos:
-                if idx_importe is not None:
-                    val = row[idx_importe]
-                else:
-                    # buscar primer valor numérico
-                    val = next((v for v in row if isinstance(v, (int, float))), 0)
-                try:
-                    consumido_total += float(val or 0)
-                except Exception:
-                    continue
-            if (consumido_total + compra.importe) > topemes:
-                raise HTTPException(status_code=400, detail=f"Límite mensual excedido: consumido={consumido_total}, importe={compra.importe}, topeMes={topemes}")
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error al validar consumo mensual: {str(e)}")
+        # La validación mensual debe hacerse contra el importe de cuota.
+        # saldomes representa el disponible mensual actual.
+        if saldomes < importe_cuota:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Saldo mensual insuficiente: disponible_mes={saldomes}, "
+                    f"cuota={importe_cuota}, topeMes={topemes}"
+                )
+            )
 
         # 4. Ejecutar transacción: grabarCompra
         cursor.execute("""
@@ -345,16 +315,6 @@ async def grabar_compra_y_actualizar_saldo_endpoint(
             compra.idcaja
         ])
         mensaje = cursor.fetchone()[0]
-        # Obtener datos del plan (tasa y cantidad de cuotas)
-        tasa_interes_mensual, cantidad_cuotas = obtener_plan_info(conn, compra.idplan)
-
-        # Calcular la cuota usando la función local (no vía HTTP)
-        tarjeta_input = TarjetaInput(monto=compra.importe, tasa_interes_mensual=tasa_interes_mensual, cuotas=cantidad_cuotas)
-        resultado_cuotas = calcular_cuotas(tarjeta_input)
-        importe_cuota = 0.0
-        if resultado_cuotas and getattr(resultado_cuotas, 'cuotas', None):
-            # Tomamos la primera cuota (todas son iguales en la generación actual)
-            importe_cuota = float(resultado_cuotas.cuotas[0].monto_cuota)
 
         # Ejecutar actualización de saldo pasando ahora el importe de la cuota
         cursor.execute("exec grabarSaldoTarjNuevo ?, ?, ?", [compra.idtarjeta, compra.importe, importe_cuota])
