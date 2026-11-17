@@ -1,7 +1,18 @@
 # API_TARJETA_MULTI\models\archivos.py
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from typing import Optional
+
+
+#-- Un NULL de la base en un campo que la App espera con valor hacía fallar la
+#-- respuesta entera (error 500 y la App sin disponibles). Se manda '' o 0, que
+#-- es lo que la App ya recibe cuando el dato está vacío: la respuesta no cambia.
+def _texto_sin_null(valor):
+	return '' if valor is None else valor
+
+
+def _numero_sin_null(valor):
+	return 0 if valor is None else valor
 
 #-- Modelos Usuarios .NET 
 class AspNetUsers(BaseModel):
@@ -81,6 +92,16 @@ class Comercios(BaseModel):
 	cuit: int
 	mail: str
 
+	@field_validator('comercio', 'nombre', 'domicilio', 'localidad', 'provincia', 'mail', mode='before')
+	@classmethod
+	def textos_sin_null(cls, valor):
+		return _texto_sin_null(valor)
+
+	@field_validator('pin', 'sucursal', 'socio', 'cuit', mode='before')
+	@classmethod
+	def numeros_sin_null(cls, valor):
+		return _numero_sin_null(valor)
+
 # -- Tarjetas
 class Tarjetas(BaseModel):
 	id: int
@@ -100,6 +121,17 @@ class Tarjetas(BaseModel):
 	estado: int
 	baja: Optional[datetime]
 	vencimento: datetime
+
+	@field_validator('nombre', 'domicilio', 'localidad', 'provincia', 'mail', mode='before')
+	@classmethod
+	def textos_sin_null(cls, valor):
+		return _texto_sin_null(valor)
+
+	@field_validator('sucursal', 'socio', 'verificador', 'tope', 'saldo', 'topemes', 'saldomes', 'estado',
+		mode='before')
+	@classmethod
+	def numeros_sin_null(cls, valor):
+		return _numero_sin_null(valor)
 
 # -- Saldo Tarjetas
 class Saldo_Tarjeta(BaseModel):
